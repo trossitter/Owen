@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Owen</title>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #F5F2ED;
+      --surface: #FFFFFF;
+      --text: #1C1C1C;
+      --text-soft: #6B6860;
+      --accent: #5C6B5A;
+      --accent-light: #EBF0EB;
+      --recording: #C0392B;
+      --border: #E0DDD8;
+      --shadow: 0 1px 4px rgba(0,0,0,0.08);
+    }
+
+    html, body { height: 100%; background: var(--bg); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; color: var(--text); -webkit-font-smoothing: antialiased; }
+
+    #app { display: flex; flex-direction: column; height: 100dvh; max-width: 640px; margin: 0 auto; }
+
+    /* Header */
+    header {
+      padding: 16px 20px 12px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    header h1 { font-size: 1.2rem; font-weight: 600; letter-spacing: -0.02em; }
+
+    #header-meta { font-size: 0.78rem; color: var(--text-soft); flex: 1; }
+
+    #sheets-dot { width: 6px; height: 6px; border-radius: 50%; background: #ccc; display: inline-block; margin-left: 3px; vertical-align: middle; transition: background 0.3s; }
+    #sheets-dot.connected { background: var(--accent); }
+
+    #summary-btn {
+      background: none;
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 5px 14px;
+      font-size: 0.78rem;
+      color: var(--text-soft);
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      white-space: nowrap;
+      flex-shrink: 0;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    #summary-btn:active { border-color: var(--accent); color: var(--accent); }
+
+    /* Welcome / home screen */
+    #home {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px 20px 8px;
+      gap: 16px;
+      text-align: center;
+    }
+
+    #home img { width: min(260px, 78vw); opacity: 0.88; border-radius: 4px; }
+
+    #entry-count {
+      font-size: 1rem;
+      color: var(--text-soft);
+      font-weight: 500;
+      min-height: 24px;
+    }
+
+    #entry-count .count-num {
+      color: var(--accent);
+      font-weight: 700;
+      font-size: 1.15rem;
+    }
+
+    #cumulative {
+      font-size: 0.78rem;
+      color: var(--text-soft);
+      opacity: 0.75;
+      min-height: 18px;
+    }
+
+    /* Wrap-up view */
+    #wrapup-view {
+      display: none;
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px;
+    }
+
+    #wrapup-view.visible { display: block; }
+
+    #wrapup-content {
+      background: var(--surface);
+      border-radius: 12px;
+      padding: 20px 22px;
+      box-shadow: var(--shadow);
+      border: 1px solid var(--border);
+      line-height: 1.7;
+    }
+
+    /* Markdown styles inside wrap-up */
+    #wrapup-content h1 { font-size: 1.1rem; font-weight: 700; margin-bottom: 16px; color: var(--text); }
+    #wrapup-content h2 { font-size: 0.88rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-soft); margin: 18px 0 8px; }
+    #wrapup-content ul { padding-left: 18px; }
+    #wrapup-content li { margin-bottom: 5px; font-size: 0.92rem; }
+    #wrapup-content p { font-size: 0.92rem; margin-bottom: 8px; }
+    #wrapup-content strong { font-weight: 600; }
+
+    #copy-btn {
+      display: block;
+      margin-top: 16px;
+      background: var(--accent-light);
+      border: 1px solid var(--accent);
+      color: var(--accent);
+      border-radius: 8px;
+      padding: 10px 16px;
+      font-size: 0.84rem;
+      cursor: pointer;
+      width: 100%;
+      font-weight: 500;
+      transition: background 0.15s;
+    }
+    #copy-btn:active { background: #d8e6d7; }
+
+    #back-btn {
+      display: block;
+      margin-top: 10px;
+      background: none;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 9px 16px;
+      font-size: 0.82rem;
+      color: var(--text-soft);
+      cursor: pointer;
+      width: 100%;
+    }
+
+    /* Controls */
+    #controls {
+      flex-shrink: 0;
+      padding: 10px 20px 32px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      border-top: 1px solid var(--border);
+    }
+
+    #mic-status { font-size: 0.8rem; color: var(--text-soft); text-align: center; min-height: 18px; }
+    #mic-status.active { color: var(--recording); font-weight: 600; font-variant-numeric: tabular-nums; }
+
+    #mic-btn {
+      width: 84px; height: 84px; border-radius: 50%; border: none;
+      background: var(--accent); color: white; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: background 0.2s, transform 0.1s;
+      -webkit-tap-highlight-color: transparent;
+      position: relative; flex-shrink: 0;
+    }
+    #mic-btn:active { transform: scale(0.93); }
+    #mic-btn.recording { background: var(--recording); }
+    #mic-btn.recording::before {
+      content: ''; position: absolute; inset: -8px; border-radius: 50%;
+      border: 2.5px solid var(--recording);
+      animation: ring 1.4s ease-in-out infinite;
+    }
+    #mic-btn.recording::after {
+      content: ''; position: absolute; inset: -16px; border-radius: 50%;
+      border: 1.5px solid var(--recording); opacity: 0.3;
+      animation: ring 1.4s ease-in-out infinite 0.3s;
+    }
+    @keyframes ring {
+      0%   { transform: scale(0.9); opacity: 0.6; }
+      60%  { transform: scale(1.05); opacity: 0.1; }
+      100% { transform: scale(0.9); opacity: 0.6; }
+    }
+    #mic-btn svg { width: 34px; height: 34px; }
+
+    #mic-hint { font-size: 0.73rem; color: var(--text-soft); opacity: 0.65; text-align: center; }
+
+    /* Transcript preview */
+    #transcript-area { flex-shrink: 0; min-height: 28px; padding: 0 24px 2px; }
+    #transcript-preview { font-size: 0.84rem; color: var(--text-soft); font-style: italic; line-height: 1.4; }
+
+    /* Toast */
+    #toast {
+      position: fixed; bottom: 130px; left: 50%; transform: translateX(-50%);
+      background: #2a2a2a; color: white; padding: 10px 18px;
+      border-radius: 8px; font-size: 0.84rem; opacity: 0;
+      pointer-events: none; transition: opacity 0.2s;
+      white-space: nowrap; z-index: 100;
+    }
+    #toast.show { opacity: 1; }
+  </style>
+</head>
+<body>
+<div id="app">
+
+  <header>
+    <h1>Owen</h1>
+    <span id="header-meta">work log <span id="sheets-dot"></span></span>
+    <button id="summary-btn">My day</button>
+  </header>
+
+  <div id="home">
+    <img src="/owen.jpeg" alt="Owen listening">
+    <div id="entry-count"></div>
+    <div id="cumulative"></div>
+  </div>
+
+  <div id="wrapup-view">
+    <div id="wrapup-content"></div>
+    <button id="copy-btn">Copy to clipboard</button>
+    <button id="back-btn">Back</button>
+  </div>
+
+  <div id="transcript-area">
+    <div id="transcript-preview"></div>
+  </div>
+
+  <div id="controls">
+    <div id="mic-status">Tap to start</div>
+    <button id="mic-btn" aria-label="Record">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+           stroke-linecap="round" stroke-linejoin="round">
+        <rect x="9" y="2" width="6" height="12" rx="3"/>
+        <path d="M5 10a7 7 0 0 0 14 0"/>
+        <line x1="12" y1="19" x2="12" y2="22"/>
+        <line x1="9" y1="22" x2="15" y2="22"/>
+      </svg>
+    </button>
+    <div id="mic-hint">Tap to start &nbsp;·&nbsp; tap again to send</div>
+  </div>
+
+</div>
+<div id="toast"></div>
+
+<script>
+  const sessionId = sessionStorage.getItem('owenSession') || crypto.randomUUID();
+  sessionStorage.setItem('owenSession', sessionId);
+
+  const homeEl       = document.getElementById('home');
+  const wrapupView   = document.getElementById('wrapup-view');
+  const wrapupContent= document.getElementById('wrapup-content');
+  const copyBtn      = document.getElementById('copy-btn');
+  const backBtn      = document.getElementById('back-btn');
+  const micBtn       = document.getElementById('mic-btn');
+  const micStatus    = document.getElementById('mic-status');
+  const transcriptEl = document.getElementById('transcript-preview');
+  const summaryBtn   = document.getElementById('summary-btn');
+  const sheetsDot    = document.getElementById('sheets-dot');
+  const entryCount   = document.getElementById('entry-count');
+  const cumulative   = document.getElementById('cumulative');
+  const toast        = document.getElementById('toast');
+
+  // ── Stats display ─────────────────────────────────────────────
+  function renderStats(s) {
+    if (!s) return;
+    if (s.todayCount === 0) {
+      entryCount.innerHTML = 'Nothing logged yet today.';
+    } else {
+      entryCount.innerHTML = `<span class="count-num">${s.todayCount}</span> logged today`;
+    }
+
+    if (s.totalEntries > 0 && s.firstEntryDate) {
+      const since = new Date(s.firstEntryDate).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+      cumulative.textContent = `${s.totalEntries} total since ${since}`;
+    } else {
+      cumulative.textContent = '';
+    }
+  }
+
+  fetch('/stats').then(r => r.json()).then(renderStats).catch(() => {});
+  fetch('/health').then(r => r.json()).then(d => {
+    if (d.sheetsConnected) { sheetsDot.classList.add('connected'); sheetsDot.title = 'Google Sheets connected'; }
+  }).catch(() => {});
+
+  // ── Wrap-up view ──────────────────────────────────────────────
+  let lastWrapUpText = '';
+
+  function showWrapUp(markdown) {
+    lastWrapUpText = markdown;
+    wrapupContent.innerHTML = marked.parse(markdown);
+    homeEl.style.display = 'none';
+    wrapupView.classList.add('visible');
+  }
+
+  backBtn.addEventListener('click', () => {
+    wrapupView.classList.remove('visible');
+    homeEl.style.display = '';
+  });
+
+  copyBtn.addEventListener('click', () => {
+    navigator.clipboard.writeText(lastWrapUpText).then(() => {
+      copyBtn.textContent = 'Copied!';
+      setTimeout(() => { copyBtn.textContent = 'Copy to clipboard'; }, 2000);
+    });
+  });
+
+  summaryBtn.addEventListener('click', () => sendMessage('wrap up'));
+
+  // ── Recording ─────────────────────────────────────────────────
+  let mediaRecorder = null;
+  let audioChunks   = [];
+  let isRecording   = false;
+  let timerInterval = null;
+  let timerSecs     = 0;
+
+  function pickMimeType() {
+    const types = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg'];
+    return types.find(t => MediaRecorder.isTypeSupported(t)) || '';
+  }
+
+  micBtn.addEventListener('click', async () => {
+    if (isRecording) {
+      mediaRecorder.stop();
+      return;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+      const mimeType = pickMimeType();
+      audioChunks = [];
+      mediaRecorder = new MediaRecorder(stream, mimeType ? { mimeType } : {});
+
+      mediaRecorder.ondataavailable = e => { if (e.data.size > 0) audioChunks.push(e.data); };
+
+      mediaRecorder.onstop = async () => {
+        stream.getTracks().forEach(t => t.stop());
+        isRecording = false;
+        clearInterval(timerInterval);
+        micBtn.classList.remove('recording');
+
+        if (!audioChunks.length) { resetMicStatus(); return; }
+
+        startLoadingMessages(micStatus);
+
+        const type = mediaRecorder.mimeType.split(';')[0] || 'audio/webm';
+        const blob = new Blob(audioChunks, { type });
+
+        try {
+          const text = await transcribeBlob(blob);
+          stopLoadingMessages();
+          transcriptEl.textContent = '';
+          resetMicStatus();
+          if (text && text.trim()) {
+            await sendMessage(text.trim());
+          } else {
+            showToast('Nothing detected — try again');
+          }
+        } catch (err) {
+          stopLoadingMessages();
+          resetMicStatus();
+          showToast(err.message || 'Transcription failed');
+        }
+      };
+
+      mediaRecorder.onerror = () => {
+        stream.getTracks().forEach(t => t.stop());
+        isRecording = false;
+        clearInterval(timerInterval);
+        micBtn.classList.remove('recording');
+        resetMicStatus();
+        showToast('Recording error — try again');
+      };
+
+      isRecording = true;
+      mediaRecorder.start(500);
+      micBtn.classList.add('recording');
+      micStatus.classList.add('active');
+      timerSecs = 0;
+      micStatus.textContent = '0:00  ·  tap to stop';
+      timerInterval = setInterval(() => {
+        timerSecs++;
+        const m = Math.floor(timerSecs / 60);
+        const s = String(timerSecs % 60).padStart(2, '0');
+        micStatus.textContent = `${m}:${s}  ·  tap to stop`;
+      }, 1000);
+
+    } catch (err) {
+      showToast(err.name === 'NotAllowedError' ? 'Mic access denied — check browser settings' : 'Could not start mic');
+    }
+  });
+
+  function resetMicStatus() {
+    micStatus.classList.remove('active');
+    micStatus.textContent = 'Tap to start';
+  }
+
+  // ── Transcription ─────────────────────────────────────────────
+  async function transcribeBlob(blob) {
+    const base64 = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload  = () => resolve(reader.result.split(',')[1]);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 45000);
+    let res;
+    try {
+      res = await fetch('/transcribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ audio: base64, mimeType: blob.type }),
+        signal: controller.signal,
+      });
+    } finally {
+      clearTimeout(timeout);
+    }
+
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Transcription failed');
+    return data.text;
+  }
+
+  // ── Chat ──────────────────────────────────────────────────────
+  async function sendMessage(text) {
+    try {
+      const res = await fetch('/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId, message: text }),
+      });
+      const data = await res.json();
+      if (!res.ok) { showToast(data.error || 'Something went wrong'); return; }
+
+      // Update stats if an entry was logged
+      if (data.stats) renderStats(data.stats);
+      else if (data.logged) fetch('/stats').then(r => r.json()).then(renderStats).catch(() => {});
+
+      // Only show output for wrap-ups
+      if (data.isWrapUp && data.reply) {
+        showWrapUp(data.reply);
+      }
+    } catch {
+      showToast('Could not reach Owen — is the server running?');
+    }
+  }
+
+  // ── Loading messages ──────────────────────────────────────────
+  const LOADING_MSGS = [
+    'Transcribing…', 'Listening closely…', 'Making sense of it…',
+    'Brewing…', 'Skedaddling through the audio…', 'Untangling your thoughts…',
+    'Percolating…', 'Almost there…', 'On it…', 'Deciphering…',
+  ];
+  let loadingInterval = null;
+
+  function startLoadingMessages(el) {
+    let i = 0;
+    el.classList.add('active');
+    el.textContent = LOADING_MSGS[0];
+    loadingInterval = setInterval(() => {
+      i = (i + 1) % LOADING_MSGS.length;
+      el.textContent = LOADING_MSGS[i];
+    }, 8600);
+  }
+
+  function stopLoadingMessages() {
+    clearInterval(loadingInterval);
+    loadingInterval = null;
+  }
+
+  // ── Toast ─────────────────────────────────────────────────────
+  function showToast(msg) {
+    toast.textContent = msg;
+    toast.classList.add('show');
+    setTimeout(() => toast.classList.remove('show'), 3500);
+  }
+</script>
+</body>
+</html>
