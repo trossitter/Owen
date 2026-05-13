@@ -23,6 +23,7 @@ function loadStats() {
 }
 
 function saveStats(stats) {
+  fs.mkdirSync(path.dirname(STATS_FILE), { recursive: true });
   fs.writeFileSync(STATS_FILE, JSON.stringify(stats, null, 2));
 }
 
